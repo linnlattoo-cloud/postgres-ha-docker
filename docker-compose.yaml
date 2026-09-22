@@ -1,0 +1,202 @@
+services:
+  # etcd Distributed Consensus Cluster (3 Nodes)
+  etcd1:
+    image: ${ETCD_IMAGE:-quay.io/coreos/etcd:v3.5.15}
+    container_name: etcd1
+    environment:
+      - ETCD_NAME=etcd1
+      - ETCD_DATA_DIR=/etcd-data
+      - ETCD_INITIAL_CLUSTER_TOKEN=${ETCD_CLUSTER_TOKEN:-etcd-cluster-token-01}
+      - ETCD_INITIAL_CLUSTER=etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      - ETCD_INITIAL_CLUSTER_STATE=new
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd1:2380
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd1:2379
+    volumes:
+      - etcd1_data:/etcd-data
+    networks:
+      - db-net
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  etcd2:
+    image: ${ETCD_IMAGE:-quay.io/coreos/etcd:v3.5.15}
+    container_name: etcd2
+    environment:
+      - ETCD_NAME=etcd2
+      - ETCD_DATA_DIR=/etcd-data
+      - ETCD_INITIAL_CLUSTER_TOKEN=${ETCD_CLUSTER_TOKEN:-etcd-cluster-token-01}
+      - ETCD_INITIAL_CLUSTER=etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      - ETCD_INITIAL_CLUSTER_STATE=new
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd2:2380
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd2:2379
+    volumes:
+      - etcd2_data:/etcd-data
+    networks:
+      - db-net
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  etcd3:
+    image: ${ETCD_IMAGE:-quay.io/coreos/etcd:v3.5.15}
+    container_name: etcd3
+    environment:
+      - ETCD_NAME=etcd3
+      - ETCD_DATA_DIR=/etcd-data
+      - ETCD_INITIAL_CLUSTER_TOKEN=${ETCD_CLUSTER_TOKEN:-etcd-cluster-token-01}
+      - ETCD_INITIAL_CLUSTER=etcd1=http://etcd1:2380,etcd2=http://etcd2:2380,etcd3=http://etcd3:2380
+      - ETCD_INITIAL_CLUSTER_STATE=new
+      - ETCD_INITIAL_ADVERTISE_PEER_URLS=http://etcd3:2380
+      - ETCD_LISTEN_PEER_URLS=http://0.0.0.0:2380
+      - ETCD_LISTEN_CLIENT_URLS=http://0.0.0.0:2379
+      - ETCD_ADVERTISE_CLIENT_URLS=http://etcd3:2379
+    volumes:
+      - etcd3_data:/etcd-data
+    networks:
+      - db-net
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # PostgreSQL 17 + Patroni Nodes (3 Nodes)
+  pg1:
+    build:
+      context: ./config/patroni
+      dockerfile: Dockerfile
+    container_name: pg1
+    hostname: pg1
+    environment:
+      - PATRONI_NAME=pg1
+      - CLUSTER_SCOPE=${CLUSTER_SCOPE:-postgres-cluster}
+      - PATRONI_ETCD3_HOSTS=etcd1:2379,etcd2:2379,etcd3:2379
+      - POSTGRES_SUPERUSER=${POSTGRES_SUPERUSER:-postgres}
+      - POSTGRES_SUPERUSER_PASSWORD=${POSTGRES_SUPERUSER_PASSWORD:-postgres_secure_password_2026}
+      - POSTGRES_REPLICATION_USER=${POSTGRES_REPLICATION_USER:-replicator}
+      - POSTGRES_REPLICATION_PASSWORD=${POSTGRES_REPLICATION_PASSWORD:-replicator_secure_password_2026}
+      - PATRONI_TTL=${PATRONI_TTL:-30}
+      - PATRONI_LOOP_WAIT=${PATRONI_LOOP_WAIT:-10}
+      - PATRONI_RETRY_TIMEOUT=${PATRONI_RETRY_TIMEOUT:-10}
+      - PATRONI_MAX_CONNECTIONS=${PATRONI_MAX_CONNECTIONS:-200}
+      - PATRONI_SHARED_BUFFERS=${PATRONI_SHARED_BUFFERS:-256MB}
+    volumes:
+      - pg1_data:/var/lib/postgresql/data
+    networks:
+      - db-net
+    depends_on:
+      etcd1:
+        condition: service_healthy
+      etcd2:
+        condition: service_healthy
+      etcd3:
+        condition: service_healthy
+    restart: unless-stopped
+
+  pg2:
+    build:
+      context: ./config/patroni
+      dockerfile: Dockerfile
+    container_name: pg2
+    hostname: pg2
+    environment:
+      - PATRONI_NAME=pg2
+      - CLUSTER_SCOPE=${CLUSTER_SCOPE:-postgres-cluster}
+      - PATRONI_ETCD3_HOSTS=etcd1:2379,etcd2:2379,etcd3:2379
+      - POSTGRES_SUPERUSER=${POSTGRES_SUPERUSER:-postgres}
+      - POSTGRES_SUPERUSER_PASSWORD=${POSTGRES_SUPERUSER_PASSWORD:-postgres_secure_password_2026}
+      - POSTGRES_REPLICATION_USER=${POSTGRES_REPLICATION_USER:-replicator}
+      - POSTGRES_REPLICATION_PASSWORD=${POSTGRES_REPLICATION_PASSWORD:-replicator_secure_password_2026}
+      - PATRONI_TTL=${PATRONI_TTL:-30}
+      - PATRONI_LOOP_WAIT=${PATRONI_LOOP_WAIT:-10}
+      - PATRONI_RETRY_TIMEOUT=${PATRONI_RETRY_TIMEOUT:-10}
+      - PATRONI_MAX_CONNECTIONS=${PATRONI_MAX_CONNECTIONS:-200}
+      - PATRONI_SHARED_BUFFERS=${PATRONI_SHARED_BUFFERS:-256MB}
+    volumes:
+      - pg2_data:/var/lib/postgresql/data
+    networks:
+      - db-net
+    depends_on:
+      etcd1:
+        condition: service_healthy
+      etcd2:
+        condition: service_healthy
+      etcd3:
+        condition: service_healthy
+    restart: unless-stopped
+
+  pg3:
+    build:
+      context: ./config/patroni
+      dockerfile: Dockerfile
+    container_name: pg3
+    hostname: pg3
+    environment:
+      - PATRONI_NAME=pg3
+      - CLUSTER_SCOPE=${CLUSTER_SCOPE:-postgres-cluster}
+      - PATRONI_ETCD3_HOSTS=etcd1:2379,etcd2:2379,etcd3:2379
+      - POSTGRES_SUPERUSER=${POSTGRES_SUPERUSER:-postgres}
+      - POSTGRES_SUPERUSER_PASSWORD=${POSTGRES_SUPERUSER_PASSWORD:-postgres_secure_password_2026}
+      - POSTGRES_REPLICATION_USER=${POSTGRES_REPLICATION_USER:-replicator}
+      - POSTGRES_REPLICATION_PASSWORD=${POSTGRES_REPLICATION_PASSWORD:-replicator_secure_password_2026}
+      - PATRONI_TTL=${PATRONI_TTL:-30}
+      - PATRONI_LOOP_WAIT=${PATRONI_LOOP_WAIT:-10}
+      - PATRONI_RETRY_TIMEOUT=${PATRONI_RETRY_TIMEOUT:-10}
+      - PATRONI_MAX_CONNECTIONS=${PATRONI_MAX_CONNECTIONS:-200}
+      - PATRONI_SHARED_BUFFERS=${PATRONI_SHARED_BUFFERS:-256MB}
+    volumes:
+      - pg3_data:/var/lib/postgresql/data
+    networks:
+      - db-net
+    depends_on:
+      etcd1:
+        condition: service_healthy
+      etcd2:
+        condition: service_healthy
+      etcd3:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # HAProxy Load Balancer & Dashboard
+  haproxy:
+    image: haproxy:2.8-alpine
+    container_name: haproxy
+    ports:
+      - "${HAPROXY_PRIMARY_PORT:-5432}:5000"
+      - "${HAPROXY_REPLICA_PORT:-5433}:5001"
+      - "${HAPROXY_STATS_PORT:-7070}:7000"
+    volumes:
+      - ./config/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      - db-net
+    depends_on:
+      - pg1
+      - pg2
+      - pg3
+    restart: unless-stopped
+
+# Persistent Volumes & Networks
+volumes:
+  etcd1_data:
+  etcd2_data:
+  etcd3_data:
+  pg1_data:
+  pg2_data:
+  pg3_data:
+
+networks:
+  db-net:
+    name: postgres-ha-net
+    driver: bridge

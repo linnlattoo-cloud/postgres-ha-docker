@@ -1,0 +1,18 @@
+# Environment files with sensitive credentials
+.env
+.env.local
+*.env
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Docker and runtime data
+data/
+*.log
+
+# IDE & Editor artifacts
+.vscode/
+.idea/
+*.swp
+*~

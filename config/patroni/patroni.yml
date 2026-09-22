@@ -1,0 +1,60 @@
+# Patroni Cluster Node Configuration Template
+# Variables are populated by entrypoint.sh at container start.
+
+scope: ${CLUSTER_SCOPE}
+namespace: /service/
+name: ${PATRONI_NAME}
+
+etcd3:
+  hosts: ${PATRONI_ETCD3_HOSTS}
+
+restapi:
+  listen: 0.0.0.0:8008
+  connect_address: ${PATRONI_NAME}:8008
+
+bootstrap:
+  dcs:
+    ttl: ${PATRONI_TTL}
+    loop_wait: ${PATRONI_LOOP_WAIT}
+    retry_timeout: ${PATRONI_RETRY_TIMEOUT}
+    maximum_lag_on_failover: 1048576
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      parameters:
+        max_connections: ${PATRONI_MAX_CONNECTIONS}
+        shared_buffers: ${PATRONI_SHARED_BUFFERS}
+        wal_level: replica
+        hot_standby: "on"
+        max_wal_senders: 10
+        max_replication_slots: 10
+        wal_keep_size: 1024MB
+        checkpoint_completion_target: 0.9
+      pg_hba:
+        - host replication ${POSTGRES_REPLICATION_USER} 0.0.0.0/0 md5
+        - host all all 0.0.0.0/0 md5
+
+  initdb:
+    - encoding: UTF8
+    - data-checksums
+
+postgresql:
+  listen: 0.0.0.0:5432
+  connect_address: ${PATRONI_NAME}:5432
+  data_dir: /var/lib/postgresql/data
+  bin_dir: /usr/lib/postgresql/17/bin
+  pgpass: /tmp/pgpass
+  authentication:
+    replication:
+      username: ${POSTGRES_REPLICATION_USER}
+      password: ${POSTGRES_REPLICATION_PASSWORD}
+    superuser:
+      username: ${POSTGRES_SUPERUSER}
+      password: ${POSTGRES_SUPERUSER_PASSWORD}
+  parameters:
+    unix_socket_directories: "/var/run/postgresql"
+
+tags:
+  nofailover: false
+  noloadbalance: false
+  clonefrom: false
